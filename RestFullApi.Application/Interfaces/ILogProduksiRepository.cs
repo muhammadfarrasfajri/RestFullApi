@@ -7,14 +7,21 @@ using System.Threading.Tasks;
 
 namespace RestFullApi.Application.Interfaces
 {
-    public interface ILogProduksiRepository
+
+    // Kontrak Khusus Write (Command)
+    public interface IProduksiWriteRepository
     {
-        // Kontrak untuk mencatat barang (Command)
-        Task<int> CatatProduksiAsync(LogProduksi log);
+        Task<int> InsertLogAsync(LogProduksi log);
+    }
 
-        // Kontrak untuk membaca rekap realtime (Query)
-        Task<IEnumerable<LogProduksi>> AmbilSemuaLogAsync();
+    // Kontrak Khusus Read (Query)
+    public interface IProduksiReadRepository
+    {
+        Task<IEnumerable<LogProduksi>> GetAllLogAsync();
+    }
 
-        Task<LogProduksi> AmbilByIdLogAsync(Guid id);
+    public interface IProduksiReadByIdRepository
+    {
+        Task<LogProduksi> GetByIdLogAsync(Guid id);
     }
 }

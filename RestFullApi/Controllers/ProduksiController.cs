@@ -1,43 +1,38 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using RestFullApi.Application.Interfaces;
-using RestFullApi.Domain;
+﻿using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using RestFullApi.Application.Features.Produksi;
 
 namespace RestFullApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // URL otomatis menjadi: http://localhost:port/api/produksi
+    [Route("api/[controller]")]
     public class ProduksiController : ControllerBase
     {
-        private readonly ILogProduksiRepository _repository;
+        // 1. Controller HANYA meminta IMediator
+        private readonly IMediator _mediator;
 
-        // Dependency Injection: Controller meminta kontrak ILogProduksiRepository
-        public ProduksiController(ILogProduksiRepository repository)
+        public ProduksiController(IMediator mediator)
         {
-            _repository = repository;
+            _mediator = mediator;
         }
 
         // Endpoint POST: api/produksi/catat
         [HttpPost("catat")]
-        public async Task<IActionResult> CatatProduksi([FromBody] LogProduksi payload)
+        public async Task<IActionResult> CatatProduksi([FromBody] CatatProduksiCommand command)
         {
-            // Set ID dan Waktu otomatis dari sisi server jika sensor tidak mengirimkannya
-            payload.Id = Guid.NewGuid();
-
-            // Menggunakan UTC adalah praktik terbaik untuk time-series database
-            payload.WaktuDeteksi = DateTime.UtcNow;
-
             try
             {
-                var result = await _repository.CatatProduksiAsync(payload);
+                // Controller melempar Command (Write) ke MediatR
+                await _mediator.Send(command);
+
                 return Ok(new
                 {
                     Status = "Sukses",
-                    Pesan = $"Berhasil mencatat {payload.Jumlah} barang dari mesin {payload.IdMesin}."
+                    Pesan = $"Berhasil mencatat {command.Jumlah} barang dari mesin {command.IdMesin}."
                 });
             }
             catch (Exception ex)
             {
-                // Sangat berguna untuk melihat error jika tabel database belum ada
                 return StatusCode(500, new { Pesan = "Terjadi kesalahan server", Error = ex.Message });
             }
         }
@@ -46,17 +41,18 @@ namespace RestFullApi.Controllers
         [HttpGet("rekap")]
         public async Task<IActionResult> AmbilRekap()
         {
-            var data = await _repository.AmbilSemuaLogAsync();
+            // Controller melempar Query (Read All) ke MediatR
+            var data = await _mediator.Send(new AmbilRekapQuery());
             return Ok(data);
         }
 
+        // Endpoint GET: api/produksi/rekap/{id}
         [HttpGet("rekap/{id}")]
         public async Task<IActionResult> AmbilRekapByid(Guid id)
         {
-            // Sekarang variabel 'id' sudah ditangkap dari URL dan bisa diteruskan ke database
-            var data = await _repository.AmbilByIdLogAsync(id);
+            // Controller melempar Query (Read By Id) beserta parameter ID-nya ke MediatR
+            var data = await _mediator.Send(new AmbilRekapByIdQuery { Id = id });
 
-            // Opsional: Cek jika data tidak ditemukan
             if (data == null)
             {
                 return NotFound(new { Pesan = "Data log produksi tidak ditemukan." });
