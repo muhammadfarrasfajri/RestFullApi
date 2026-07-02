@@ -30,7 +30,7 @@ namespace RestFullApi.Application.Features.Produksi
                 Id = Guid.NewGuid(),
                 IdMesin = request.IdMesin,
                 Jumlah = request.Jumlah,
-                WaktuDeteksi = DateTime.UtcNow
+                WaktuDeteksi = DateTime.UtcNow.AddHours(7)
             };
 
             var result = await _writeRepo.InsertLogAsync(log);

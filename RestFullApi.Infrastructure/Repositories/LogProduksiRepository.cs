@@ -6,55 +6,53 @@ using Microsoft.Extensions.Configuration;
 
 namespace RestFullApi.Infrastructure.Repositories
 {
-    // Kelas ini "mewarisi" dan wajib mematuhi kontrak dari ILogProduksiRepository
-
+    // 1. REPOSITORI UNTUK MENULIS DATA (COMMAND)
     public class ProduksiWriteRepository : IProduksiWriteRepository
     {
         private readonly string _connString;
-        public ProduksiWriteRepository(IConfiguration config) => _connString = config.GetConnectionString("DefaultConnection");
+
+        // Menggunakan ?? "" untuk mencegah warning kuning dari .NET 8
+        public ProduksiWriteRepository(IConfiguration config)
+            => _connString = config.GetConnectionString("DefaultConnection") ?? "";
 
         public async Task<int> InsertLogAsync(LogProduksi log)
         {
             using var connection = new NpgsqlConnection(_connString);
-            var sql = "INSERT INTO log_produksi (id, id_mesin, jumlah, waktu_deteksi) VALUES (@Id, @IdMesin, @Jumlah, @WaktuDeteksi)";
-            return await connection.ExecuteAsync(sql, log);
+
+            // A. Simpan data mentah dari MQTT
+            var sqlInsert = "INSERT INTO log_produksi (id, id_mesin, jumlah, waktu_deteksi) VALUES (@Id, @IdMesin, @Jumlah, @WaktuDeteksi)";
+            var result = await connection.ExecuteAsync(sqlInsert, log);
+
+            return result;
         }
     }
 
-    public class ProduksiReadRepository : IProduksiReadRepository
+    // 2. REPOSITORI UNTUK MEMBACA DATA REKAP (QUERY)
+    public class ProduksiReadMenitRepository : IProduksiReadMenitRepository
     {
         private readonly string _connectionString;
 
-        public ProduksiReadRepository(IConfiguration configuration) => _connectionString = configuration.GetConnectionString("DefaultConnection");
-       
-        public async Task<IEnumerable<LogProduksi>> GetAllLogAsync()
+        public ProduksiReadMenitRepository(IConfiguration configuration)
+            => _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
+
+        public async Task<IEnumerable<RekapProduksiMenitan>> GetRekapMenitanAsync()
         {
             using var connection = new NpgsqlConnection(_connectionString);
 
-            var sql = "SELECT id, id_mesin AS IdMesin, jumlah, waktu_deteksi AS WaktuDeteksi FROM log_produksi ORDER BY waktu_deteksi DESC LIMIT 100";
+            // KUNCI RAHASIA: Kita hitung langsung dari tabel mentah 'log_produksi' 
+            // menggunakan fungsi time_bucket dari TimescaleDB. Dijamin instan!
+            var sql = @"
+                SELECT 
+                    time_bucket('1 minute', waktu_deteksi) AS RentangWaktu, 
+                    id_mesin AS IdMesin, 
+                    SUM(jumlah) AS TotalProduksi, 
+                    COUNT(id) AS FrekuensiSensor 
+                FROM log_produksi 
+                GROUP BY RentangWaktu, id_mesin
+                ORDER BY RentangWaktu DESC 
+                LIMIT 50";
 
-            // Dapper secara otomatis membungkus hasil kembalian SQL ke dalam List objek Domain
-            return await connection.QueryAsync<LogProduksi>(sql);
+            return await connection.QueryAsync<RekapProduksiMenitan>(sql);
         }
     }
-
-    public class ProduksiReadByIdRepository : IProduksiReadByIdRepository
-    {
-        private readonly string _connectionString;
-
-        // Constructor untuk menangkap string koneksi dari Dependency Injection
-        public ProduksiReadByIdRepository(IConfiguration configuration) => _connectionString = configuration.GetConnectionString("DefaultConnection");
-        
-        public async Task<LogProduksi> GetByIdLogAsync(Guid id)
-        {
-            using var connection = new NpgsqlConnection(_connectionString);
-
-            var sql = "SELECT id, id_mesin, jumlah, waktu_deteksi FROM log_produksi WHERE id = @id";
-
-            // 2. Gunakan QueryFirstOrDefaultAsync yang dirancang untuk mengambil 1 baris (atau null)
-            return await connection.QueryFirstOrDefaultAsync<LogProduksi>(sql, new { id = id });
-        }
-
-    }
-
 }

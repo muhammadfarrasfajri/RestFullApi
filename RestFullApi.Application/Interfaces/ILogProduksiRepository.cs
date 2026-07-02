@@ -14,14 +14,8 @@ namespace RestFullApi.Application.Interfaces
         Task<int> InsertLogAsync(LogProduksi log);
     }
 
-    // Kontrak Khusus Read (Query)
-    public interface IProduksiReadRepository
+    public interface IProduksiReadMenitRepository
     {
-        Task<IEnumerable<LogProduksi>> GetAllLogAsync();
-    }
-
-    public interface IProduksiReadByIdRepository
-    {
-        Task<LogProduksi> GetByIdLogAsync(Guid id);
+        Task<IEnumerable<RekapProduksiMenitan>> GetRekapMenitanAsync();
     }
 }

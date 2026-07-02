@@ -37,28 +37,12 @@ namespace RestFullApi.Controllers
             }
         }
 
-        // Endpoint GET: api/produksi/rekap
-        [HttpGet("rekap")]
-        public async Task<IActionResult> AmbilRekap()
+        [HttpGet("rekap-menit")]
+        public async Task<IActionResult> GetRekapMenitan()
         {
-            // Controller melempar Query (Read All) ke MediatR
-            var data = await _mediator.Send(new AmbilRekapQuery());
-            return Ok(data);
-        }
-
-        // Endpoint GET: api/produksi/rekap/{id}
-        [HttpGet("rekap/{id}")]
-        public async Task<IActionResult> AmbilRekapByid(Guid id)
-        {
-            // Controller melempar Query (Read By Id) beserta parameter ID-nya ke MediatR
-            var data = await _mediator.Send(new AmbilRekapByIdQuery { Id = id });
-
-            if (data == null)
-            {
-                return NotFound(new { Pesan = "Data log produksi tidak ditemukan." });
-            }
-
-            return Ok(data);
+            // UBAH BARIS INI: Gunakan AmbilRekapMenitanQuery, bukan GetRekapProduksiMenitanQuery
+            var hasil = await _mediator.Send(new AmbilRekapMenitanQuery());
+            return Ok(hasil);
         }
     }
 }

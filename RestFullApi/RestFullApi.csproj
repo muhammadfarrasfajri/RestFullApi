@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="MediatR" Version="14.1.0" />
+	<PackageReference Include="MQTTnet" Version="4.3.3.952" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 

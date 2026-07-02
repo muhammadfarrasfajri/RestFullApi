@@ -1,34 +1,36 @@
 using RestFullApi.Application.Interfaces;
-using RestFullApi.Hubs;
+using RestFullApi.Infrastructure.Hubs;
 using RestFullApi.Infrastructure.Repositories;
-using RestFullApi.Services;
+using RestFullApi.Infrastructure.Services;
+using RestFullApi.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
-// Mendaftarkan MediatR agar Controller bisa menggunakannya
 builder.Services.AddSignalR();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(RestFullApi.Application.Features.Produksi.CatatProduksiCommand).Assembly));
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// --- PENGATURAN DEPENDENCY INJECTION YANG BERSIH ---
+// Kita hanya mendaftarkan alat-alat yang benar-benar kita pakai
 builder.Services.AddScoped<IProduksiWriteRepository, ProduksiWriteRepository>();
-builder.Services.AddScoped<IProduksiReadRepository, ProduksiReadRepository>();
-builder.Services.AddScoped<IProduksiReadByIdRepository, ProduksiReadByIdRepository>();
-builder.Services.AddScoped<IDasborNotificationService, SignalRNotificationService>();
+builder.Services.AddScoped<IProduksiReadMenitRepository, ProduksiReadMenitRepository>();
+builder.Services.AddScoped<IDasborNotificationService, DasborNotificationService>();
 
-// Tambahkan kebijakan CORS ini
+// Mendaftarkan Satpam MQTT
+builder.Services.AddHostedService<MqttReceiverService>();
+
+// Tambahkan kebijakan CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("IzinkanSignalR", builder =>
+    options.AddPolicy("IzinkanSignalR", policyBuilder =>
     {
-        builder.SetIsOriginAllowed(_ => true) // Izinkan akses dari mana saja untuk testing lokal
-               .AllowAnyMethod()
-               .AllowAnyHeader()
-               .AllowCredentials(); // SignalR wajib menggunakan ini
+        policyBuilder.SetIsOriginAllowed(_ => true)
+                     .AllowAnyMethod()
+                     .AllowAnyHeader()
+                     .AllowCredentials();
     });
 });
 
@@ -42,15 +44,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseRouting();
-
 app.UseCors("IzinkanSignalR");
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.MapHub<DasborProduksiHub>("/produksihub");
 
 app.Run();
